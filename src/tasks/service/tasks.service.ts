@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from '../task.entity';
 import { TaskStatus } from '../models/task-status-enum';
 import { GetTasksFilterDto } from '../models/get-tasks-filter.dto';
+import { CreateTaskDto } from '../models/create-task.dto';
+import { User } from '../../auth/user.entity';
 
 @Injectable()
 export class TasksService {
@@ -13,12 +15,15 @@ export class TasksService {
     private taskRepository: TaskRepository) {
   }
 
-  public getTasks (filterDto: GetTasksFilterDto): Promise<Task[]> {
-    return this.taskRepository.getTasks(filterDto);
+  public getTasks (
+    filterDto: GetTasksFilterDto,
+    user: User
+  ): Promise<Task[]> {
+    return this.taskRepository.getTasks(filterDto, user);
   }
 
-  public async getTaskById (id: number): Promise<Task> {
-    const found = await this.taskRepository.findOne(id);
+  public async getTaskById (id: number, user: User): Promise<Task> {
+    const found = await this.taskRepository.findOne({ where: { id, userId: user.id }});
 
     if (!found) {
       throw new NotFoundException(`Task with id ${id} was not found`);
@@ -27,19 +32,19 @@ export class TasksService {
     return found;
   }
 
-  public async createTask (createTaskDto): Promise<Task> {
-    return this.taskRepository.createTask(createTaskDto);
+  public async createTask (createTaskDto: CreateTaskDto, user: User): Promise<Task> {
+    return this.taskRepository.createTask(createTaskDto, user);
   }
 
-  public async updateTaskStatus(id: number, status: TaskStatus): Promise<Task> {
-    const task = await this.getTaskById(id);
+  public async updateTaskStatus(id: number, status: TaskStatus, user: User): Promise<Task> {
+    const task = await this.getTaskById(id, user);
     task.status = status;
     await task.save();
     return task;
   }
 
-  public async deleteTask(id: number) {
-    const result = await this.taskRepository.delete(id);
+  public async deleteTask(id: number, user: User) {
+    const result = await this.taskRepository.delete({id, userId: user.id});
 
     if (result.affected === 0) {
       throw new NotFoundException(`Task with id ${id} was not found`);
